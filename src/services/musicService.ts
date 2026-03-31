@@ -13,6 +13,7 @@ export async function searchMusic(query: string): Promise<Track[]> {
       `${BASE_URL}/tracks/search?query=${encodeURIComponent(query)}&app_name=${APP_NAME}`
     );
     const { data } = await response.json();
+    if (!data || !Array.isArray(data)) return [];
     
     return data.map((item: any) => ({
       id: item.id,
@@ -36,6 +37,7 @@ export async function getTopTracks(): Promise<Track[]> {
       `${BASE_URL}/tracks/trending?app_name=${APP_NAME}`
     );
     const { data } = await response.json();
+    if (!data || !Array.isArray(data)) return [];
     
     return data.slice(0, 20).map((item: any) => ({
       id: item.id,
@@ -68,6 +70,8 @@ export async function getArtistTracks(userId: string): Promise<Track[]> {
   try {
     const response = await fetch(`${BASE_URL}/users/${userId}/tracks?app_name=${APP_NAME}`);
     const { data } = await response.json();
+    if (!data || !Array.isArray(data)) return [];
+    
     return data.map((item: any) => ({
       id: item.id,
       title: item.title,

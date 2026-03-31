@@ -1,13 +1,23 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Music2, Github } from 'lucide-react';
+import { Music2, Github, X } from 'lucide-react';
 
 export const Login = () => {
-  const { loginWithGoogle, loginWithGithub } = useAuth();
+  const { loginWithGoogle, loginWithGithub, error, setError } = useAuth();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-tunehub-bg p-4">
-      <div className="max-w-md w-full glass p-8 rounded-3xl flex flex-col items-center gap-8 shadow-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-tunehub-bg p-4 text-white">
+      <div className="max-w-md w-full glass p-8 rounded-3xl flex flex-col items-center gap-8 shadow-2xl relative overflow-hidden">
+        {/* Error Message */}
+        {error && (
+          <div className="absolute top-0 left-0 right-0 bg-red-500/90 backdrop-blur-sm p-3 text-xs text-center animate-in slide-in-from-top duration-300 z-50 flex items-center justify-between px-4">
+            <span className="flex-1">{error}</span>
+            <button onClick={() => setError(null)} className="ml-2 hover:scale-110 transition-transform">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-tunehub-accent to-tunehub-secondary flex items-center justify-center shadow-lg shadow-tunehub-accent/20">
           <Music2 size={32} className="text-white" />
         </div>

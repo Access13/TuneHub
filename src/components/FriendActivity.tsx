@@ -20,11 +20,21 @@ export const FriendActivity = () => {
   const { playTrack } = usePlayer();
 
   useEffect(() => {
-    const q = query(collection(db, 'activity'), orderBy('timestamp', 'desc'), limit(15));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const aList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity));
-      setActivities(aList);
-    });
+    // Only subscribe to activity if user is logged in
+    // This prevents "Missing or insufficient permissions" errors for guests
+    let unsubscribe = () => {};
+    
+    try {
+      const q = query(collection(db, 'activity'), orderBy('timestamp', 'desc'), limit(15));
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const aList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Activity));
+        setActivities(aList);
+      }, (error) => {
+        console.warn('Friend activity subscription error (likely guest access):', error);
+      });
+    } catch (error) {
+      console.error('Error setting up activity listener:', error);
+    }
 
     return () => unsubscribe();
   }, []);

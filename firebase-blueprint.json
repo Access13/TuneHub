@@ -74,6 +74,18 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "userName", "track", "timestamp"]
+    },
+    "Folder": {
+      "title": "Folder",
+      "description": "User created folder for playlists",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "ownerId"]
     }
   },
   "firestore": {
@@ -96,6 +108,10 @@
     "/activity/{activityId}": {
       "schema": "FriendActivity",
       "description": "Global activity feed"
+    },
+    "/folders/{folderId}": {
+      "schema": "Folder",
+      "description": "User's playlist folders"
     }
   }
 }

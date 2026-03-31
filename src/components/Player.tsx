@@ -48,18 +48,9 @@ export const Player = () => {
     }
   }, [currentLyricIndex, showLyrics]);
 
-  if (!currentTrack) return null;
-
-  const liked = isLiked(currentTrack.id);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement) return;
+    if (!currentTrack) return;
 
     switch (e.code) {
       case 'Space':
@@ -95,6 +86,16 @@ export const Player = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  if (!currentTrack) return null;
+
+  const liked = isLiked(currentTrack.id);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
     <>

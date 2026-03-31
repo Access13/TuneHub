@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { Howl } from 'howler';
+import { Howl, Howler } from 'howler';
 import { Track, Playlist, Folder } from '../types';
 import { 
   collection, 
@@ -11,10 +11,62 @@ import {
   orderBy, 
   limit, 
   serverTimestamp,
-  addDoc
+  addDoc,
+  getDoc
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { useAuth } from './AuthContext';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 interface PlayerContextType {
   currentTrack: Track | null;
@@ -67,7 +119,7 @@ interface PlayerContextType {
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, setError } = useAuth();
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.7);
@@ -130,6 +182,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .map(doc => ({ ...doc.data(), id: doc.id } as Playlist))
         .filter(p => p.ownerId === user.uid || p.isPublic);
       setPlaylists(pList);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'playlists');
     });
 
     return () => unsubscribe();
@@ -145,6 +199,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .map(doc => ({ ...doc.data(), id: doc.id } as Folder))
         .filter(f => f.ownerId === user.uid);
       setFolders(fList);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'folders');
     });
 
     return () => unsubscribe();
@@ -157,6 +213,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const unsubscribe = onSnapshot(collection(db, 'users', user.uid, 'likedSongs'), (snapshot) => {
       const songs = snapshot.docs.map(doc => doc.data() as Track);
       setLikedSongs(songs);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/likedSongs`);
     });
 
     return () => unsubscribe();
@@ -174,90 +232,110 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const hList = snapshot.docs.map(doc => doc.data().track as Track);
       setHistory(hList);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/history`);
     });
 
     return () => unsubscribe();
   }, [user]);
 
   const playTrack = async (track: Track) => {
-    if (howlRef.current) {
-      howlRef.current.unload();
-    }
-
-    const newHowl = new Howl({
-      src: [track.preview],
-      html5: false, // Set to false to use Web Audio API for EQ
-      volume: volume,
-      onplay: () => {
-        setIsPlaying(true);
-        setDuration(newHowl.duration());
-        setupEQ(newHowl);
-      },
-      onpause: () => setIsPlaying(false),
-      onstop: () => setIsPlaying(false),
-      onend: () => {
-        setIsPlaying(false);
-        if (isAutoplay) nextTrack();
-      },
-      onload: () => {
-        setDuration(newHowl.duration());
+    try {
+      if (howlRef.current) {
+        howlRef.current.unload();
       }
-    });
 
-    howlRef.current = newHowl;
-    setCurrentTrack(track);
-    newHowl.play();
-
-    // Record History and Activity
-    if (user) {
-      await addDoc(collection(db, 'users', user.uid, 'history'), {
-        userId: user.uid,
-        track,
-        playedAt: serverTimestamp()
+      const newHowl = new Howl({
+        src: [track.preview],
+        html5: false, // Set to false to use Web Audio API for EQ
+        volume: volume,
+        onplay: () => {
+          setIsPlaying(true);
+          setDuration(newHowl.duration());
+          setupEQ(newHowl);
+        },
+        onpause: () => setIsPlaying(false),
+        onstop: () => setIsPlaying(false),
+        onend: () => {
+          setIsPlaying(false);
+          if (isAutoplay) nextTrack();
+        },
+        onload: () => {
+          setDuration(newHowl.duration());
+        },
+        onloaderror: (id, error) => {
+          console.error('Howler load error:', error);
+          setIsPlaying(false);
+        },
+        onplayerror: (id, error) => {
+          console.error('Howler play error:', error);
+          setIsPlaying(false);
+        }
       });
 
-      await addDoc(collection(db, 'activity'), {
-        userId: user.uid,
-        userName: user.displayName || 'Anonymous',
-        userPhoto: user.photoURL || '',
-        track,
-        timestamp: serverTimestamp()
-      });
+      howlRef.current = newHowl;
+      setCurrentTrack(track);
+      newHowl.play();
+
+      // Record History and Activity
+      if (user) {
+        addDoc(collection(db, 'users', user.uid, 'history'), {
+          userId: user.uid,
+          track,
+          playedAt: serverTimestamp()
+        }).catch(err => handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}/history`));
+
+        addDoc(collection(db, 'activity'), {
+          userId: user.uid,
+          userName: user.displayName || 'Anonymous',
+          userPhoto: user.photoURL || '',
+          track,
+          timestamp: serverTimestamp()
+        }).catch(err => handleFirestoreError(err, OperationType.CREATE, 'activity'));
+      }
+    } catch (error) {
+      console.error('playTrack error:', error);
     }
   };
 
   const setupEQ = (howl: Howl) => {
-    // @ts-ignore - Howler internal access
-    const audioCtx = (Howler as any).ctx;
-    if (!audioCtx) return;
+    try {
+      // @ts-ignore - Howler internal access
+      const audioCtx = (Howler as any).ctx;
+      if (!audioCtx) return;
 
-    // @ts-ignore - Howler internal access
-    const source = (howl as any)._sounds[0]._node;
-    if (!source) return;
+      // @ts-ignore - Howler internal access
+      const sounds = (howl as any)._sounds;
+      if (!sounds || !sounds[0] || !sounds[0]._node) return;
 
-    const low = audioCtx.createBiquadFilter();
-    low.type = 'lowshelf';
-    low.frequency.value = 320;
-    low.gain.value = eqGains.low;
+      const source = sounds[0]._node;
 
-    const mid = audioCtx.createBiquadFilter();
-    mid.type = 'peaking';
-    mid.frequency.value = 1000;
-    mid.Q.value = 1;
-    mid.gain.value = eqGains.mid;
+      const low = audioCtx.createBiquadFilter();
+      low.type = 'lowshelf';
+      low.frequency.value = 320;
+      low.gain.value = eqGains.low;
 
-    const high = audioCtx.createBiquadFilter();
-    high.type = 'highshelf';
-    high.frequency.value = 3200;
-    high.gain.value = eqGains.high;
+      const mid = audioCtx.createBiquadFilter();
+      mid.type = 'peaking';
+      mid.frequency.value = 1000;
+      mid.Q.value = 1;
+      mid.gain.value = eqGains.mid;
 
-    source.disconnect();
-    source.connect(low);
-    low.connect(mid);
-    mid.connect(high);
-    high.connect(audioCtx.destination);
+      const high = audioCtx.createBiquadFilter();
+      high.type = 'highshelf';
+      high.frequency.value = 3200;
+      high.gain.value = eqGains.high;
 
-    eqNodesRef.current = { low, mid, high };
+      source.disconnect();
+      source.connect(low);
+      low.connect(mid);
+      mid.connect(high);
+      high.connect(audioCtx.destination);
+
+      eqNodesRef.current = { low, mid, high };
+    } catch (error) {
+      console.error('setupEQ error:', error);
+    }
   };
 
   const setEqGain = (band: 'low' | 'mid' | 'high', gain: number) => {
@@ -288,10 +366,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const seek = (percent: number) => {
-    if (!howlRef.current) return;
-    const time = (percent / 100) * howlRef.current.duration();
-    howlRef.current.seek(time);
-    setProgress(percent);
+    if (!howlRef.current || isNaN(percent)) return;
+    const dur = howlRef.current.duration();
+    if (dur > 0) {
+      const time = (percent / 100) * dur;
+      howlRef.current.seek(time);
+      setProgress(percent);
+    }
   };
 
   const nextTrack = () => {
@@ -327,34 +408,48 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const createPlaylist = async (name: string, folderId: string | null = null) => {
-    if (!user) return;
-    const id = Math.random().toString(36).substr(2, 9);
-    const newPlaylist: Playlist = {
-      id,
-      name,
-      description: 'Custom playlist',
-      cover: `https://picsum.photos/seed/${name}/300/300`,
-      ownerId: user.uid,
-      isPublic: false,
-      isCollaborative: false,
-      folderId,
-      tracks: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    await setDoc(doc(db, 'playlists', id), {
-      ...newPlaylist,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
+    if (!user) {
+      setError('Please sign in to create playlists');
+      return;
+    }
+    try {
+      const id = Math.random().toString(36).substr(2, 9);
+      const newPlaylist: Playlist = {
+        id,
+        name,
+        description: 'Custom playlist',
+        cover: `https://picsum.photos/seed/${name}/300/300`,
+        ownerId: user.uid,
+        isPublic: false,
+        isCollaborative: false,
+        folderId,
+        tracks: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      await setDoc(doc(db, 'playlists', id), {
+        ...newPlaylist,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'playlists');
+    }
   };
 
   const deletePlaylist = async (id: string) => {
-    if (!user) return;
+    if (!user) {
+      setError('Please sign in to delete playlists');
+      return;
+    }
     if (id === 'liked') return;
-    await deleteDoc(doc(db, 'playlists', id));
-    if (selectedPlaylistId === id) setSelectedPlaylistId(null);
+    try {
+      await deleteDoc(doc(db, 'playlists', id));
+      if (selectedPlaylistId === id) setSelectedPlaylistId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `playlists/${id}`);
+    }
   };
 
   const addToPlaylist = async (playlistId: string, track: Track) => {
@@ -363,10 +458,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (playlist.tracks.find(t => t.id === track.id)) return;
 
-    await setDoc(doc(db, 'playlists', playlistId), {
-      tracks: [...playlist.tracks, track],
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, 'playlists', playlistId), {
+        tracks: [...playlist.tracks, track],
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `playlists/${playlistId}`);
+    }
   };
 
   const removeFromPlaylist = async (playlistId: string, trackId: string) => {
@@ -374,56 +473,80 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!playlist) return;
 
     const updatedTracks = playlist.tracks.filter(t => t.id !== trackId);
-    await setDoc(doc(db, 'playlists', playlistId), {
-      tracks: updatedTracks,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, 'playlists', playlistId), {
+        tracks: updatedTracks,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `playlists/${playlistId}`);
+    }
   };
 
   const updatePlaylistCover = async (playlistId: string, coverUrl: string) => {
     if (playlistId === 'liked') return;
-    await setDoc(doc(db, 'playlists', playlistId), {
-      cover: coverUrl,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, 'playlists', playlistId), {
+        cover: coverUrl,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `playlists/${playlistId}`);
+    }
   };
 
   const toggleCollaborative = async (playlistId: string) => {
     const playlist = playlists.find(p => p.id === playlistId);
     if (!playlist) return;
-    await setDoc(doc(db, 'playlists', playlistId), {
-      isCollaborative: !playlist.isCollaborative,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, 'playlists', playlistId), {
+        isCollaborative: !playlist.isCollaborative,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `playlists/${playlistId}`);
+    }
   };
 
   const createFolder = async (name: string) => {
     if (!user) return;
-    const id = Math.random().toString(36).substr(2, 9);
-    const newFolder: Folder = {
-      id,
-      name,
-      ownerId: user.uid,
-      createdAt: new Date().toISOString()
-    };
-    await setDoc(doc(db, 'folders', id), {
-      ...newFolder,
-      createdAt: serverTimestamp()
-    });
+    try {
+      const id = Math.random().toString(36).substr(2, 9);
+      const newFolder: Folder = {
+        id,
+        name,
+        ownerId: user.uid,
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'folders', id), {
+        ...newFolder,
+        createdAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'folders');
+    }
   };
 
   const deleteFolder = async (id: string) => {
     if (!user) return;
-    await deleteDoc(doc(db, 'folders', id));
-    // Reset folderId for playlists in this folder
-    const folderPlaylists = playlists.filter(p => p.folderId === id);
-    for (const p of folderPlaylists) {
-      await setDoc(doc(db, 'playlists', p.id), { folderId: null }, { merge: true });
+    try {
+      await deleteDoc(doc(db, 'folders', id));
+      // Reset folderId for playlists in this folder
+      const folderPlaylists = playlists.filter(p => p.folderId === id);
+      for (const p of folderPlaylists) {
+        await setDoc(doc(db, 'playlists', p.id), { folderId: null }, { merge: true });
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `folders/${id}`);
     }
   };
 
   const movePlaylistToFolder = async (playlistId: string, folderId: string | null) => {
-    await setDoc(doc(db, 'playlists', playlistId), { folderId }, { merge: true });
+    try {
+      await setDoc(doc(db, 'playlists', playlistId), { folderId }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `playlists/${playlistId}`);
+    }
   };
 
   const reorderTracks = async (playlistId: string, startIndex: number, endIndex: number) => {
@@ -434,21 +557,32 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [removed] = updatedTracks.splice(startIndex, 1);
     updatedTracks.splice(endIndex, 0, removed);
 
-    await setDoc(doc(db, 'playlists', playlistId), {
-      tracks: updatedTracks,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, 'playlists', playlistId), {
+        tracks: updatedTracks,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `playlists/${playlistId}`);
+    }
   };
 
   const toggleLike = async (track: Track) => {
-    if (!user) return;
+    if (!user) {
+      setError('Please sign in to like songs');
+      return;
+    }
     const trackRef = doc(db, 'users', user.uid, 'likedSongs', track.id);
     const exists = likedSongs.find(t => t.id === track.id);
 
-    if (exists) {
-      await deleteDoc(trackRef);
-    } else {
-      await setDoc(trackRef, track);
+    try {
+      if (exists) {
+        await deleteDoc(trackRef);
+      } else {
+        await setDoc(trackRef, track);
+      }
+    } catch (error) {
+      handleFirestoreError(error, exists ? OperationType.DELETE : OperationType.WRITE, `users/${user.uid}/likedSongs/${track.id}`);
     }
   };
 

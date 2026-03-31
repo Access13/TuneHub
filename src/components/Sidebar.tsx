@@ -38,7 +38,7 @@ export const Sidebar = () => {
     selectedPlaylistId, setSelectedPlaylistId,
     history 
   } = usePlayer();
-  const { user, logout } = useAuth();
+  const { user, logout, loginWithGoogle } = useAuth();
   const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const [draggedPlaylistId, setDraggedPlaylistId] = useState<string | null>(null);
 
@@ -242,7 +242,7 @@ export const Sidebar = () => {
           .map(playlist => renderPlaylist(playlist))}
       </div>
 
-      {user && (
+      {user ? (
         <div className="mt-auto pt-4 border-t border-white/5 flex-shrink-0">
           <div className="glass rounded-2xl p-3 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-tunehub-accent/20">
@@ -266,6 +266,16 @@ export const Sidebar = () => {
               <LogOut size={18} />
             </button>
           </div>
+        </div>
+      ) : (
+        <div className="mt-auto pt-4 border-t border-white/5 flex-shrink-0">
+          <button 
+            onClick={loginWithGoogle}
+            className="w-full py-3 bg-tunehub-accent/10 text-tunehub-accent rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-tunehub-accent/20 transition-all border border-tunehub-accent/20"
+          >
+            <User size={18} />
+            Sign In
+          </button>
         </div>
       )}
     </aside>

@@ -49,8 +49,15 @@ export const MainContent = () => {
     setLoading(false);
   };
   const [searchHistory, setSearchHistory] = useState<string[]>(() => {
-    const saved = localStorage.getItem('searchHistory');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('searchHistory');
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error('Error loading search history:', error);
+      return [];
+    }
   });
 
   const [searchType, setSearchType] = useState<'all' | 'tracks' | 'artists' | 'albums'>('all');

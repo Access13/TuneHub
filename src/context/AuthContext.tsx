@@ -12,6 +12,8 @@ import { auth, db, googleProvider, githubProvider } from '../firebase';
 interface AuthContextType {
   user: FirebaseUser | null;
   loading: boolean;
+  error: string | null;
+  setError: (error: string | null) => void;
   loginWithGoogle: () => Promise<void>;
   loginWithGithub: () => Promise<void>;
   logout: () => Promise<void>;
@@ -23,53 +25,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Sync user to Firestore
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        const userSnap = await getDoc(userRef);
+      try {
+        if (firebaseUser) {
+          // Sync user to Firestore
+          const userRef = doc(db, 'users', firebaseUser.uid);
+          const userSnap = await getDoc(userRef);
 
-        if (!userSnap.exists()) {
-          await setDoc(userRef, {
-            uid: firebaseUser.uid,
-            displayName: firebaseUser.displayName,
-            email: firebaseUser.email,
-            photoURL: firebaseUser.photoURL,
-            role: 'user',
-            createdAt: serverTimestamp(),
-            lastLogin: serverTimestamp()
-          });
+          if (!userSnap.exists()) {
+            await setDoc(userRef, {
+              uid: firebaseUser.uid,
+              displayName: firebaseUser.displayName,
+              email: firebaseUser.email,
+              photoURL: firebaseUser.photoURL,
+              role: 'user',
+              createdAt: serverTimestamp(),
+              lastLogin: serverTimestamp()
+            });
+          } else {
+            await setDoc(userRef, {
+              lastLogin: serverTimestamp()
+            }, { merge: true });
+          }
+          setUser(firebaseUser);
         } else {
-          await setDoc(userRef, {
-            lastLogin: serverTimestamp()
-          }, { merge: true });
+          setUser(null);
         }
-        setUser(firebaseUser);
-      } else {
-        setUser(null);
+      } catch (err: any) {
+        console.error('Auth sync error:', err);
+        setError(err.message || 'Failed to sync user data');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
   const loginWithGoogle = async () => {
+    setError(null);
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error('Google login error:', error);
-      throw error;
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized for Google Sign-In. Please add your Vercel URL to the "Authorized domains" list in the Firebase Console.');
+      } else {
+        setError(err.message || 'Failed to sign in with Google');
+      }
+      throw err;
     }
   };
 
   const loginWithGithub = async () => {
+    setError(null);
     try {
       await signInWithPopup(auth, githubProvider);
-    } catch (error) {
-      console.error('Github login error:', error);
-      throw error;
+    } catch (err: any) {
+      console.error('Github login error:', err);
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized for GitHub Sign-In. Please add your Vercel URL to the "Authorized domains" list in the Firebase Console.');
+      } else {
+        setError(err.message || 'Failed to sign in with GitHub');
+      }
+      throw err;
     }
   };
 
@@ -83,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, loginWithGithub, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, setError, loginWithGoogle, loginWithGithub, logout }}>
       {children}
     </AuthContext.Provider>
   );
