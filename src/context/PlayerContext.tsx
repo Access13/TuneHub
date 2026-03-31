@@ -247,12 +247,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const newHowl = new Howl({
         src: [track.preview],
-        html5: false, // Set to false to use Web Audio API for EQ
+        html5: true, // Set to true for better streaming reliability
         volume: volume,
         onplay: () => {
           setIsPlaying(true);
           setDuration(newHowl.duration());
-          setupEQ(newHowl);
+          // setupEQ(newHowl); // EQ requires Web Audio (html5: false)
         },
         onpause: () => setIsPlaying(false),
         onstop: () => setIsPlaying(false),
@@ -261,14 +261,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (isAutoplay) nextTrack();
         },
         onload: () => {
+          console.log('Howler loaded successfully:', track.title);
           setDuration(newHowl.duration());
         },
         onloaderror: (id, error) => {
-          console.error('Howler load error:', error);
+          console.error('Howler load error for track:', track.title, 'Error:', error);
           setIsPlaying(false);
         },
         onplayerror: (id, error) => {
-          console.error('Howler play error:', error);
+          console.error('Howler play error for track:', track.title, 'Error:', error);
           setIsPlaying(false);
         }
       });

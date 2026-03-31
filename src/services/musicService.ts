@@ -5,9 +5,25 @@ import { Track } from '../types';
  * Audius is a decentralized music platform that provides full-length tracks.
  */
 const APP_NAME = 'TUNEHUB';
-const BASE_URL = 'https://discoveryprovider.audius.co/v1';
+let BASE_URL = 'https://discoveryprovider.audius.co/v1';
+let nodeInitialized = false;
+
+async function ensureNode() {
+  if (nodeInitialized) return;
+  try {
+    const response = await fetch('https://api.audius.co');
+    const { data } = await response.json();
+    if (data && data.length > 0) {
+      BASE_URL = `${data[0]}/v1`;
+      nodeInitialized = true;
+    }
+  } catch (error) {
+    console.error('Error fetching healthy Audius node:', error);
+  }
+}
 
 export async function searchMusic(query: string): Promise<Track[]> {
+  await ensureNode();
   try {
     const response = await fetch(
       `${BASE_URL}/tracks/search?query=${encodeURIComponent(query)}&app_name=${APP_NAME}`
@@ -32,6 +48,7 @@ export async function searchMusic(query: string): Promise<Track[]> {
 }
 
 export async function getTopTracks(): Promise<Track[]> {
+  await ensureNode();
   try {
     const response = await fetch(
       `${BASE_URL}/tracks/trending?app_name=${APP_NAME}`
@@ -56,6 +73,7 @@ export async function getTopTracks(): Promise<Track[]> {
 }
 
 export async function getArtistData(userId: string): Promise<any> {
+  await ensureNode();
   try {
     const response = await fetch(`${BASE_URL}/users/${userId}?app_name=${APP_NAME}`);
     const { data } = await response.json();
@@ -67,6 +85,7 @@ export async function getArtistData(userId: string): Promise<any> {
 }
 
 export async function getArtistTracks(userId: string): Promise<Track[]> {
+  await ensureNode();
   try {
     const response = await fetch(`${BASE_URL}/users/${userId}/tracks?app_name=${APP_NAME}`);
     const { data } = await response.json();
