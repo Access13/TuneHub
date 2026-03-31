@@ -1,0 +1,101 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Track": {
+      "title": "Track",
+      "description": "Music track metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "artist": { "type": "string" },
+        "album": { "type": "string" },
+        "cover": { "type": "string" },
+        "preview": { "type": "string" },
+        "duration": { "type": "number" }
+      },
+      "required": ["id", "title", "artist", "preview"]
+    },
+    "Playlist": {
+      "title": "Playlist",
+      "description": "User created playlist",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "cover": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "isPublic": { "type": "boolean" },
+        "isCollaborative": { "type": "boolean" },
+        "tracks": {
+          "type": "array",
+          "items": { "$ref": "Track" }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "ownerId"]
+    },
+    "RecentlyPlayed": {
+      "title": "RecentlyPlayed",
+      "description": "History of played tracks",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "track": { "$ref": "Track" },
+        "playedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "track", "playedAt"]
+    },
+    "FriendActivity": {
+      "title": "FriendActivity",
+      "description": "Activity feed for friends",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "track": { "$ref": "Track" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "track", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/playlists/{playlistId}": {
+      "schema": "Playlist",
+      "description": "Global playlists (public or shared)"
+    },
+    "/users/{userId}/likedSongs/{trackId}": {
+      "schema": "Track",
+      "description": "User's liked songs"
+    },
+    "/users/{userId}/history/{historyId}": {
+      "schema": "RecentlyPlayed",
+      "description": "User's listening history"
+    },
+    "/activity/{activityId}": {
+      "schema": "FriendActivity",
+      "description": "Global activity feed"
+    }
+  }
+}
