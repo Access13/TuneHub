@@ -18,7 +18,8 @@ export const Player = () => {
   const { 
     currentTrack, isPlaying, togglePlay, progress, seek, 
     volume, setVolume, duration, toggleLike, isLiked,
-    nextTrack, prevTrack, queue
+    nextTrack, prevTrack, queue, isShuffle, toggleShuffle, shuffleQueue,
+    repeatMode, toggleRepeat
   } = usePlayer();
 
   const [showQueue, setShowQueue] = useState(false);
@@ -221,7 +222,15 @@ export const Player = () => {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <button className="text-white/20 hover:text-white transition-colors"><Shuffle size={28} /></button>
+                    <button 
+                      onClick={toggleShuffle}
+                      className={cn(
+                        "transition-colors",
+                        isShuffle ? "text-tunehub-accent" : "text-white/20 hover:text-white"
+                      )}
+                    >
+                      <Shuffle size={28} />
+                    </button>
                     <div className="flex items-center gap-12">
                       <button onClick={prevTrack} className="text-white hover:scale-110 transition-transform"><SkipBack size={48} fill="currentColor" /></button>
                       <button 
@@ -232,7 +241,18 @@ export const Player = () => {
                       </button>
                       <button onClick={nextTrack} className="text-white hover:scale-110 transition-transform"><SkipForward size={48} fill="currentColor" /></button>
                     </div>
-                    <button className="text-white/20 hover:text-white transition-colors"><Repeat size={28} /></button>
+                    <button 
+                      onClick={toggleRepeat}
+                      className={cn(
+                        "transition-colors relative",
+                        repeatMode !== 'none' ? "text-tunehub-accent" : "text-white/20 hover:text-white"
+                      )}
+                    >
+                      <Repeat size={28} />
+                      {repeatMode === 'one' && (
+                        <span className="absolute -top-1 -right-1 bg-tunehub-accent text-black text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">1</span>
+                      )}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -288,7 +308,13 @@ export const Player = () => {
         {/* Controls - Desktop Only */}
         <div className="hidden md:flex flex-col items-center gap-2 w-1/3">
           <div className="flex items-center gap-6">
-            <button className="text-white/40 hover:text-white transition-colors">
+            <button 
+              onClick={toggleShuffle}
+              className={cn(
+                "transition-colors",
+                isShuffle ? "text-tunehub-accent" : "text-white/40 hover:text-white"
+              )}
+            >
               <Shuffle size={18} />
             </button>
             <button onClick={prevTrack} className="text-white/60 hover:text-white transition-colors">
@@ -303,8 +329,17 @@ export const Player = () => {
             <button onClick={nextTrack} className="text-white/60 hover:text-white transition-colors">
               <SkipForward size={24} fill="currentColor" />
             </button>
-            <button className="text-white/40 hover:text-white transition-colors">
+            <button 
+              onClick={toggleRepeat}
+              className={cn(
+                "transition-colors relative",
+                repeatMode !== 'none' ? "text-tunehub-accent" : "text-white/40 hover:text-white"
+              )}
+            >
               <Repeat size={18} />
+              {repeatMode === 'one' && (
+                <span className="absolute -top-1 -right-1 bg-tunehub-accent text-black text-[8px] font-bold w-3 h-3 rounded-full flex items-center justify-center">1</span>
+              )}
             </button>
           </div>
           

@@ -80,6 +80,9 @@ interface PlayerContextType {
   seek: (percent: number) => void;
   nextTrack: () => void;
   prevTrack: () => void;
+  toggleShuffle: () => void;
+  toggleRepeat: () => void;
+  shuffleQueue: () => void;
   queue: Track[];
   addToQueue: (track: Track) => void;
   playlists: Playlist[];
@@ -278,21 +281,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setCurrentTrack(track);
       newHowl.play();
 
-      // Record History and Activity
+      // Record History
       if (user) {
         addDoc(collection(db, 'users', user.uid, 'history'), {
           userId: user.uid,
           track,
           playedAt: serverTimestamp()
         }).catch(err => handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}/history`));
-
-        addDoc(collection(db, 'activity'), {
-          userId: user.uid,
-          userName: user.displayName || 'Anonymous',
-          userPhoto: user.photoURL || '',
-          track,
-          timestamp: serverTimestamp()
-        }).catch(err => handleFirestoreError(err, OperationType.CREATE, 'activity'));
       }
     } catch (error) {
       console.error('playTrack error:', error);
@@ -376,6 +371,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const toggleShuffle = () => {
+    const newVal = !isShuffle;
+    setIsShuffle(newVal);
+    if (newVal) shuffleQueue();
+  };
+
+  const toggleRepeat = () => {
+    setRepeatMode(prev => {
+      if (prev === 'none') return 'all';
+      if (prev === 'all') return 'one';
+      return 'none';
+    });
+  };
+
+  const shuffleQueue = () => {
+    if (queue.length === 0) return;
+    const shuffled = [...queue].sort(() => Math.random() - 0.5);
+    setQueue(shuffled);
+  };
+
   const nextTrack = () => {
     if (repeatMode === 'one' && currentTrack) {
       playTrack(currentTrack);
@@ -399,8 +414,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const prevTrack = () => {
-    if (howlRef.current) {
+    if (!howlRef.current) return;
+    const current = howlRef.current.seek() as number;
+    if (current > 3) {
       howlRef.current.seek(0);
+    } else if (history.length > 1) {
+      // history[0] is current, history[1] is previous
+      playTrack(history[1]);
     }
   };
 
@@ -633,7 +653,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatePlaylistCover, toggleCollaborative, createFolder, deleteFolder, movePlaylistToFolder,
       reorderTracks,
       toggleLike, isLiked, selectedPlaylistId, setSelectedPlaylistId,
-      history, isShuffle, setIsShuffle, repeatMode, setRepeatMode,
+      history, isShuffle, toggleShuffle, shuffleQueue, repeatMode, setRepeatMode, toggleRepeat,
       sleepTimer, setSleepTimer, sleepTimerRemaining,
       audioQuality, setAudioQuality, isMono, setIsMono, isAutoplay, setIsAutoplay,
       eqGains, setEqGain

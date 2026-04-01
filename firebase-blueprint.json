@@ -62,19 +62,6 @@
       },
       "required": ["userId", "track", "playedAt"]
     },
-    "FriendActivity": {
-      "title": "FriendActivity",
-      "description": "Activity feed for friends",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "userName": { "type": "string" },
-        "userPhoto": { "type": "string" },
-        "track": { "$ref": "Track" },
-        "timestamp": { "type": "string", "format": "date-time" }
-      },
-      "required": ["userId", "userName", "track", "timestamp"]
-    },
     "Folder": {
       "title": "Folder",
       "description": "User created folder for playlists",
@@ -104,10 +91,6 @@
     "/users/{userId}/history/{historyId}": {
       "schema": "RecentlyPlayed",
       "description": "User's listening history"
-    },
-    "/activity/{activityId}": {
-      "schema": "FriendActivity",
-      "description": "Global activity feed"
     },
     "/folders/{folderId}": {
       "schema": "Folder",

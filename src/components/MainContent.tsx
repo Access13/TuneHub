@@ -111,15 +111,20 @@ export const MainContent = () => {
       setTracks(history);
       setLoading(false);
     } else if (selectedPlaylistId) {
-      setTracks(selectedPlaylist?.tracks || []);
+      const currentPlaylist = playlists.find(p => p.id === selectedPlaylistId);
+      setTracks(currentPlaylist?.tracks || []);
       setLoading(false);
-    } else if (!searchQuery) {
-      loadInitialTracks();
     }
   }, [selectedPlaylistId, playlists, history]);
 
+  useEffect(() => {
+    if (!selectedPlaylistId && !searchQuery) {
+      loadInitialTracks();
+    }
+  }, [selectedPlaylistId, searchQuery]);
+
   const loadInitialTracks = async () => {
-    setLoading(true);
+    if (tracks.length === 0) setLoading(true);
     const results = await getTopTracks();
     setTracks(results);
     setLoading(false);
@@ -560,12 +565,7 @@ export const MainContent = () => {
           )}
         </div>
 
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-96 gap-4">
-            <Loader2 className="text-tunehub-accent animate-spin" size={48} />
-            <p className="text-white/40 font-bold uppercase tracking-widest text-xs">Tuning in...</p>
-          </div>
-        ) : tracks.length === 0 ? (
+        {tracks.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center h-96 text-white/40 glass rounded-[2rem] border-dashed border-2 border-white/5">
             {selectedPlaylistId ? (
               <>

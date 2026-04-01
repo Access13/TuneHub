@@ -56,15 +56,6 @@ service cloud.firestore {
     //   - ownerId: string (required)
     //   - createdAt: timestamp (required)
     //
-    // Collection: activity
-    // Document ID: activityId
-    // Fields:
-    //   - userId: string (required)
-    //   - userName: string (required)
-    //   - userPhoto: string (optional)
-    //   - track: map (required)
-    //   - timestamp: timestamp (required)
-    //
     // ===============================================================
 
     // ===============================================================
@@ -104,12 +95,6 @@ service cloud.firestore {
              data.ownerId is string && data.createdAt is timestamp;
     }
 
-    function isValidActivity(data) {
-      return data.keys().hasAll(['userId', 'userName', 'track', 'timestamp']) &&
-             data.userId is string && data.userName is string &&
-             data.track is map && data.timestamp is timestamp;
-    }
-
     function isValidTrack(data) {
       return data.keys().hasAll(['id', 'title', 'artist', 'preview', 'duration']) &&
              data.id is string && data.title is string && data.artist is string &&
@@ -141,13 +126,6 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isOwner(request.resource.data.ownerId) && isValidFolder(request.resource.data);
       allow update: if isAuthenticated() && isOwner(resource.data.ownerId) && isValidFolder(request.resource.data);
       allow delete: if isAuthenticated() && (isOwner(resource.data.ownerId) || isAdmin());
-    }
-
-    // Activity feed
-    match /activity/{activityId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId) && isValidActivity(request.resource.data);
-      allow delete: if isAdmin();
     }
 
     // Liked songs

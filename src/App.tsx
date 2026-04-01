@@ -4,7 +4,6 @@ import { Sidebar } from './components/Sidebar';
 import { MainContent } from './components/MainContent';
 import { Player } from './components/Player';
 import { MobileNav } from './components/MobileNav';
-import { FriendActivity } from './components/FriendActivity';
 import { Loader2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect } from 'react';
@@ -67,7 +66,6 @@ const AppContent = () => {
       <div className="flex-1 flex flex-col relative overflow-hidden">
         <div className="flex flex-1 overflow-hidden">
           <MainContent />
-          <FriendActivity />
         </div>
         <MobileNav />
         <Player />
