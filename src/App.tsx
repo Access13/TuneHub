@@ -4,6 +4,7 @@ import { Sidebar } from './components/Sidebar';
 import { MainContent } from './components/MainContent';
 import { Player } from './components/Player';
 import { MobileNav } from './components/MobileNav';
+import { Auth } from './components/Auth';
 import { Loader2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect } from 'react';
@@ -39,6 +40,8 @@ const AppContent = () => {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-tunehub-bg flex-col md:flex-row relative">
+      <Auth />
+      
       {/* Global Auth Error Toast */}
       <AnimatePresence>
         {error && (
@@ -60,16 +63,20 @@ const AppContent = () => {
         )}
       </AnimatePresence>
 
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
-      <div className="flex-1 flex flex-col relative overflow-hidden">
-        <div className="flex flex-1 overflow-hidden">
-          <MainContent />
-        </div>
-        <MobileNav />
-        <Player />
-      </div>
+      {user && user.emailVerified && (
+        <>
+          <div className="hidden md:block">
+            <Sidebar />
+          </div>
+          <div className="flex-1 flex flex-col relative overflow-hidden">
+            <div className="flex flex-1 overflow-hidden">
+              <MainContent />
+            </div>
+            <MobileNav />
+            <Player />
+          </div>
+        </>
+      )}
     </div>
   );
 };

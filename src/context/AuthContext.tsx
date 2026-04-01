@@ -3,6 +3,10 @@ import {
   onAuthStateChanged, 
   signInWithPopup, 
   signOut, 
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  updateProfile,
   User as FirebaseUser,
   getAdditionalUserInfo
 } from 'firebase/auth';
@@ -16,6 +20,9 @@ interface AuthContextType {
   setError: (error: string | null) => void;
   loginWithGoogle: () => Promise<void>;
   loginWithGithub: () => Promise<void>;
+  registerWithEmail: (email: string, password: string, username: string, phoneNumber: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
+  sendVerification: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -95,6 +102,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const registerWithEmail = async (email: string, password: string, username: string, phoneNumber: string) => {
+    setError(null);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+
+      // Update profile with username
+      await updateProfile(firebaseUser, { displayName: username });
+
+      // Sync to Firestore with extra fields
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      await setDoc(userRef, {
+        uid: firebaseUser.uid,
+        displayName: username,
+        username: username,
+        email: firebaseUser.email,
+        phoneNumber: phoneNumber,
+        photoURL: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${username}&background=random`,
+        role: 'user',
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp()
+      });
+
+      // Send verification email
+      await sendEmailVerification(firebaseUser);
+      
+      setUser(firebaseUser);
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      setError(err.message || 'Failed to register');
+      throw err;
+    }
+  };
+
+  const loginWithEmail = async (email: string, password: string) => {
+    setError(null);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Failed to login');
+      throw err;
+    }
+  };
+
+  const sendVerification = async () => {
+    if (!auth.currentUser) return;
+    try {
+      await sendEmailVerification(auth.currentUser);
+    } catch (err: any) {
+      console.error('Verification error:', err);
+      setError(err.message || 'Failed to send verification email');
+      throw err;
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -105,7 +168,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, setError, loginWithGoogle, loginWithGithub, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      error, 
+      setError, 
+      loginWithGoogle, 
+      loginWithGithub, 
+      registerWithEmail,
+      loginWithEmail,
+      sendVerification,
+      logout 
+    }}>
       {children}
     </AuthContext.Provider>
   );

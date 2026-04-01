@@ -10,7 +10,9 @@ service cloud.firestore {
     // Fields:
     //   - uid: string (required)
     //   - displayName: string (optional)
+    //   - username: string (optional)
     //   - email: string (required)
+    //   - phoneNumber: string (optional)
     //   - photoURL: string (optional)
     //   - role: string (required, 'user' or 'admin')
     //   - createdAt: timestamp (required)
@@ -78,6 +80,8 @@ service cloud.firestore {
     function isValidUser(data) {
       return data.keys().hasAll(['uid', 'email', 'role', 'createdAt', 'lastLogin']) &&
              data.uid is string && data.email is string &&
+             (!('username' in data) || (data.username is string && data.username.size() < 50)) &&
+             (!('phoneNumber' in data) || (data.phoneNumber is string && data.phoneNumber.size() < 20)) &&
              data.role in ['user', 'admin'] &&
              data.createdAt is timestamp && data.lastLogin is timestamp;
     }
