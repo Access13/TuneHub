@@ -248,8 +248,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         howlRef.current.unload();
       }
 
+      const streamUrl = track.preview.includes('?') 
+        ? `${track.preview}&quality=${audioQuality}`
+        : `${track.preview}?quality=${audioQuality}`;
+
       const newHowl = new Howl({
-        src: [track.preview],
+        src: [streamUrl],
         html5: true, // Set to true for better streaming reliability
         volume: volume,
         onplay: () => {

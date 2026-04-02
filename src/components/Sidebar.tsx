@@ -242,42 +242,7 @@ export const Sidebar = () => {
           .map(playlist => renderPlaylist(playlist))}
       </div>
 
-      {user ? (
-        <div className="mt-auto pt-4 border-t border-white/5 flex-shrink-0">
-          <div className="glass rounded-2xl p-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-tunehub-accent/20">
-              {user.photoURL ? (
-                <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                  <User size={20} className="text-white/40" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold truncate">{user.displayName || 'User'}</p>
-              <p className="text-[10px] text-white/40 truncate">{user.email}</p>
-            </div>
-            <button 
-              onClick={logout}
-              className="p-2 text-white/40 hover:text-red-500 transition-colors"
-              title="Logout"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-auto pt-4 border-t border-white/5 flex-shrink-0">
-          <button 
-            onClick={loginWithGoogle}
-            className="w-full py-3 bg-tunehub-accent/10 text-tunehub-accent rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-tunehub-accent/20 transition-all border border-tunehub-accent/20"
-          >
-            <User size={18} />
-            Sign In
-          </button>
-        </div>
-      )}
+      {/* Profile section removed per user request */}
     </aside>
   );
 };

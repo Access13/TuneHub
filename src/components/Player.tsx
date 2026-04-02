@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, 
   Volume2, Maximize2, Heart, ListMusic, Minimize2, 
-  ChevronDown, X, Mic2, Music2
+  ChevronDown, X, Mic2, Music2, Settings
 } from 'lucide-react';
 import { usePlayer } from '../context/PlayerContext';
 import { cn } from '../lib/utils';
@@ -19,10 +19,11 @@ export const Player = () => {
     currentTrack, isPlaying, togglePlay, progress, seek, 
     volume, setVolume, duration, toggleLike, isLiked,
     nextTrack, prevTrack, queue, isShuffle, toggleShuffle, shuffleQueue,
-    repeatMode, toggleRepeat
+    repeatMode, toggleRepeat, audioQuality, setAudioQuality
   } = usePlayer();
 
   const [showQueue, setShowQueue] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
@@ -129,6 +130,44 @@ export const Player = () => {
                 <p className="text-sm font-bold">Audius Discovery</p>
               </div>
               <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setShowSettings(!showSettings)} 
+                  className={cn("p-2 rounded-full transition-colors relative", showSettings ? "bg-tunehub-accent text-black" : "hover:bg-white/10")}
+                >
+                  <Settings size={24} />
+                  <AnimatePresence>
+                    {showSettings && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="absolute top-full right-0 mt-4 w-48 glass-dark rounded-2xl p-4 shadow-2xl border border-white/10 z-[70]"
+                      >
+                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">Audio Quality</h3>
+                        <div className="flex flex-col gap-1">
+                          {(['low', 'medium', 'high'] as const).map((q) => (
+                            <button
+                              key={q}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAudioQuality(q);
+                                setShowSettings(false);
+                              }}
+                              className={cn(
+                                "w-full px-3 py-2 rounded-lg text-xs font-medium text-left transition-all",
+                                audioQuality === q 
+                                  ? "bg-tunehub-accent text-black" 
+                                  : "text-white/60 hover:text-white hover:bg-white/5"
+                              )}
+                            >
+                              {q.charAt(0).toUpperCase() + q.slice(1)}
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </button>
                 <button 
                   onClick={() => setShowLyrics(!showLyrics)} 
                   className={cn("p-2 rounded-full transition-colors", showLyrics ? "bg-tunehub-accent text-black" : "hover:bg-white/10")}
@@ -376,6 +415,46 @@ export const Player = () => {
             )}
           >
             <Mic2 size={20} />
+          </button>
+          <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className={cn(
+              "transition-colors relative",
+              showSettings ? "text-tunehub-accent" : "text-white/40 hover:text-white"
+            )}
+          >
+            <Settings size={20} />
+            <AnimatePresence>
+              {showSettings && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute bottom-full right-0 mb-4 w-48 glass-dark rounded-2xl p-4 shadow-2xl border border-white/10 z-[70]"
+                >
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/40 mb-3">Audio Quality</h3>
+                  <div className="flex flex-col gap-1">
+                    {(['low', 'medium', 'high'] as const).map((q) => (
+                      <button
+                        key={q}
+                        onClick={() => {
+                          setAudioQuality(q);
+                          setShowSettings(false);
+                        }}
+                        className={cn(
+                          "w-full px-3 py-2 rounded-lg text-xs font-medium text-left transition-all",
+                          audioQuality === q 
+                            ? "bg-tunehub-accent text-black" 
+                            : "text-white/60 hover:text-white hover:bg-white/5"
+                        )}
+                      >
+                        {q.charAt(0).toUpperCase() + q.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </button>
           <button 
             onClick={() => setShowQueue(!showQueue)}

@@ -6,6 +6,7 @@ export interface Track {
   album: string;
   cover: string;
   preview: string;
+  streamUrl?: string;
   duration: number;
 }
 
