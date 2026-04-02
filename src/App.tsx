@@ -11,7 +11,14 @@ import { doc, getDocFromServer } from 'firebase/firestore';
 import { db } from './firebase';
 
 const AppContent = () => {
-  const { loading, error, setError } = useAuth();
+  const { loading, error, setError, message, setMessage } = useAuth();
+
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message, setMessage]);
 
   useEffect(() => {
     async function testConnection() {
@@ -52,6 +59,27 @@ const AppContent = () => {
             {error}
             <button 
               onClick={() => setError(null)}
+              className="ml-2 hover:text-white transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Global Message Toast */}
+      <AnimatePresence>
+        {message && (
+          <motion.div 
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 20, opacity: 1 }}
+            exit={{ y: -100, opacity: 0 }}
+            className="absolute top-0 left-1/2 -translate-x-1/2 z-[100] glass-dark px-6 py-3 rounded-full border border-tunehub-accent/50 text-tunehub-accent text-sm font-medium flex items-center gap-3 shadow-2xl"
+          >
+            <div className="w-2 h-2 rounded-full bg-tunehub-accent animate-pulse" />
+            {message}
+            <button 
+              onClick={() => setMessage(null)}
               className="ml-2 hover:text-white transition-colors"
             >
               <X size={14} />

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Howl, Howler } from 'howler';
 import { Track, Playlist, Folder } from '../types';
 import { 
@@ -122,7 +122,7 @@ interface PlayerContextType {
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, setError } = useAuth();
+  const { user, setError, setMessage } = useAuth();
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.7);
@@ -138,12 +138,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [repeatMode, setRepeatMode] = useState<'none' | 'all' | 'one'>('none');
   const [sleepTimer, setSleepTimer] = useState<number | null>(null);
   const [sleepTimerRemaining, setSleepTimerRemaining] = useState<number | null>(null);
-  const [audioQuality, setAudioQuality] = useState<'low' | 'medium' | 'high'>('medium');
+  const [audioQuality, setAudioQuality] = useState<'low' | 'medium' | 'high'>(() => {
+    return (localStorage.getItem('audioQuality') as 'low' | 'medium' | 'high') || 'medium';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('audioQuality', audioQuality);
+  }, [audioQuality]);
   const [isMono, setIsMono] = useState(false);
   const [isAutoplay, setIsAutoplay] = useState(true);
   const [eqGains, setEqGains] = useState({ low: 0, mid: 0, high: 0 });
   
   const howlRef = useRef<Howl | null>(null);
+  const isInitialMount = useRef(true);
   const eqNodesRef = useRef<{ low: BiquadFilterNode; mid: BiquadFilterNode; high: BiquadFilterNode } | null>(null);
   const progressInterval = useRef<number | null>(null);
   const sleepTimerInterval = useRef<number | null>(null);
@@ -242,7 +249,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => unsubscribe();
   }, [user]);
 
-  const playTrack = async (track: Track) => {
+  const playTrack = useCallback(async (track: Track, startTime?: number) => {
     try {
       if (howlRef.current) {
         howlRef.current.unload();
@@ -259,6 +266,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         onplay: () => {
           setIsPlaying(true);
           setDuration(newHowl.duration());
+          if (startTime !== undefined) {
+            newHowl.seek(startTime);
+          }
           // setupEQ(newHowl); // EQ requires Web Audio (html5: false)
         },
         onpause: () => setIsPlaying(false),
@@ -296,7 +306,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (error) {
       console.error('playTrack error:', error);
     }
-  };
+  }, [audioQuality, volume, isAutoplay, user]);
 
   const setupEQ = (howl: Howl) => {
     try {
@@ -641,6 +651,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       howlRef.current.volume(volume);
     }
   }, [volume]);
+
+  // Handle Quality Change
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (currentTrack && howlRef.current && isPlaying) {
+      const currentTime = howlRef.current.seek() as number;
+      playTrack(currentTrack, currentTime);
+      setMessage(`Audio quality set to ${audioQuality.toUpperCase()}`);
+    }
+  }, [audioQuality, playTrack, setMessage]);
 
   // Combine Liked Songs into playlists for UI consistency
   const allPlaylists = [

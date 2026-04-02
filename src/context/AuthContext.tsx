@@ -18,6 +18,8 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   setError: (error: string | null) => void;
+  message: string | null;
+  setMessage: (message: string | null) => void;
   loginWithGoogle: () => Promise<void>;
   loginWithGithub: () => Promise<void>;
   registerWithEmail: (email: string, password: string, username: string, phoneNumber: string) => Promise<void>;
@@ -33,6 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -173,6 +176,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loading, 
       error, 
       setError, 
+      message,
+      setMessage,
       loginWithGoogle, 
       loginWithGithub, 
       registerWithEmail,
