@@ -5,7 +5,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 export async function getMoodRecommendations(mood: string): Promise<string[]> {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: `Suggest 5 music genres or search terms for someone feeling "${mood}". Return only a comma-separated list of terms.`,
     });
     
@@ -21,7 +21,7 @@ export async function getPersonalizedRecommendations(history: string[]): Promise
   try {
     const historyStr = history.join(', ');
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: `Based on this listening history: [${historyStr}], suggest 5 music genres or search terms for a personalized mix. Return only a comma-separated list of terms.`,
     });
     

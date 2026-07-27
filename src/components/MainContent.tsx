@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Sparkles, Loader2, Coffee, Target, Zap, Heart, Moon, History, Clock, Play, Music2, User, PlusSquare, ChevronRight } from 'lucide-react';
-import { searchMusic, getTopTracks } from '../services/musicService';
+import { searchMusic, getTopTracks, getArtistData, getArtistTracks } from '../services/musicService';
 import { getMoodRecommendations, getPersonalizedRecommendations } from '../services/aiService';
 import { Track } from '../types';
 import { TrackCard } from './TrackCard';
@@ -36,7 +36,6 @@ export const MainContent = () => {
   const loadArtistData = async (artistId: string) => {
     setLoading(true);
     try {
-      const { getArtistData, getArtistTracks } = await import('../services/musicService');
       const [data, tracks] = await Promise.all([
         getArtistData(artistId),
         getArtistTracks(artistId)
@@ -475,7 +474,6 @@ export const MainContent = () => {
                 <Sparkles size={20} className="text-tunehub-accent animate-pulse" />
                 <span className="text-tunehub-accent font-bold tracking-[0.3em] text-[10px] md:text-xs uppercase">New Release</span>
               </div>
-              <h1 className="text-4xl md:text-7xl font-black mb-4 tracking-tighter leading-none max-w-2xl">Discover the Sound of Audius</h1>
               <h1 className="text-4xl md:text-7xl font-black mb-4 tracking-tighter leading-none max-w-2xl">Discover the Sound of Audius</h1>
               <p className="text-white/60 max-w-lg text-sm md:text-lg font-medium">Explore millions of tracks from independent artists worldwide.</p>
             </div>

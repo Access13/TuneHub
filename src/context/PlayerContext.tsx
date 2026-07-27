@@ -154,6 +154,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const eqNodesRef = useRef<{ low: BiquadFilterNode; mid: BiquadFilterNode; high: BiquadFilterNode } | null>(null);
   const progressInterval = useRef<number | null>(null);
   const sleepTimerInterval = useRef<number | null>(null);
+  const nextTrackRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (sleepTimer !== null) {
@@ -193,7 +194,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .filter(p => p.ownerId === user.uid || p.isPublic);
       setPlaylists(pList);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'playlists');
+      console.error('Firestore playlists snapshot error:', error.message);
     });
 
     return () => unsubscribe();
@@ -210,7 +211,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .filter(f => f.ownerId === user.uid);
       setFolders(fList);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'folders');
+      console.error('Firestore folders snapshot error:', error.message);
     });
 
     return () => unsubscribe();
@@ -224,7 +225,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const songs = snapshot.docs.map(doc => doc.data() as Track);
       setLikedSongs(songs);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/likedSongs`);
+      console.error('Firestore likedSongs snapshot error:', error.message);
     });
 
     return () => unsubscribe();
@@ -243,7 +244,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const hList = snapshot.docs.map(doc => doc.data().track as Track);
       setHistory(hList);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/history`);
+      console.error('Firestore history snapshot error:', error.message);
     });
 
     return () => unsubscribe();
@@ -275,7 +276,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         onstop: () => setIsPlaying(false),
         onend: () => {
           setIsPlaying(false);
-          if (isAutoplay) nextTrack();
+          if (isAutoplay) nextTrackRef.current();
         },
         onload: () => {
           console.log('Howler loaded successfully:', track.title);
@@ -301,7 +302,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           userId: user.uid,
           track,
           playedAt: serverTimestamp()
-        }).catch(err => handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}/history`));
+        }).catch(err => console.error('Failed to record history:', err.message));
       }
     } catch (error) {
       console.error('playTrack error:', error);
@@ -422,10 +423,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setQueue(newQueue);
       playTrack(next);
     } else if (repeatMode === 'all' && history.length > 0) {
-      // Very basic repeat all from history if queue is empty
       playTrack(history[history.length - 1]);
     }
   };
+
+  nextTrackRef.current = nextTrack;
 
   const prevTrack = () => {
     if (!howlRef.current) return;
@@ -448,7 +450,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     try {
-      const id = Math.random().toString(36).substr(2, 9);
+      const id = crypto.randomUUID();
       const newPlaylist: Playlist = {
         id,
         name,
@@ -546,7 +548,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const createFolder = async (name: string) => {
     if (!user) return;
     try {
-      const id = Math.random().toString(36).substr(2, 9);
+      const id = crypto.randomUUID();
       const newFolder: Folder = {
         id,
         name,
@@ -624,6 +626,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isLiked = (trackId: string) => {
     return !!likedSongs.find(t => t.id === trackId);
   };
+
+  useEffect(() => {
+    return () => {
+      if (howlRef.current) {
+        howlRef.current.unload();
+        howlRef.current = null;
+      }
+      if (progressInterval.current) clearInterval(progressInterval.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (isPlaying) {

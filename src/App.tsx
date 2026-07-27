@@ -4,11 +4,10 @@ import { Sidebar } from './components/Sidebar';
 import { MainContent } from './components/MainContent';
 import { Player } from './components/Player';
 import { MobileNav } from './components/MobileNav';
+import { Auth } from './components/Auth';
 import { Loader2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect } from 'react';
-import { doc, getDocFromServer } from 'firebase/firestore';
-import { db } from './firebase';
 
 const AppContent = () => {
   const { loading, error, setError, message, setMessage } = useAuth();
@@ -19,22 +18,6 @@ const AppContent = () => {
       return () => clearTimeout(timer);
     }
   }, [message, setMessage]);
-
-  useEffect(() => {
-    async function testConnection() {
-      try {
-        // Test connection to Firestore
-        await getDocFromServer(doc(db, 'test', 'connection'));
-        console.log('Firestore connection successful');
-      } catch (error: any) {
-        if (error.message?.includes('the client is offline')) {
-          console.error("Firestore connection failed: the client is offline. This usually means the configuration is incorrect or the database is not reachable.");
-          setError("Database connection error: The client is offline. Please check your network or Firebase configuration.");
-        }
-      }
-    }
-    testConnection();
-  }, [setError]);
 
   if (loading) {
     return (
@@ -88,6 +71,7 @@ const AppContent = () => {
         )}
       </AnimatePresence>
 
+      <Auth />
       <div className="hidden md:block">
         <Sidebar />
       </div>

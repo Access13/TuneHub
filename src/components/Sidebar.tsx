@@ -49,7 +49,7 @@ export const Sidebar = () => {
 
   const handleCreateBlend = () => {
     const name = prompt('Enter Blend name:', 'Our Blend');
-    if (name) createPlaylist(name, true);
+    if (name) createPlaylist(name);
   };
 
   const handleCreateFolder = () => {
